@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Surprise for Dipika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti for particle effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#0a0a1a',
+                            pink: '#ec4899',
+                            purple: '#a855f7'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Base & Resets */
+        body {
+            background-color: #0a0a1a;
+            color: #1e293b;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e2f; }
+        ::-webkit-scrollbar-thumb { background: #ec4899; border-radius: 4px; }
+
+        /* Utilities */
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .rotate-x-12 { transform: rotateX(12deg); }
+        
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        
+        @keyframes float-slow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-30px); }
+        }
+        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(236,72,153,0.5); }
+            50% { box-shadow: 0 0 30px rgba(236,72,153,0.8); }
+        }
+        .animate-pulse-glow { animation: pulse-glow 2s infinite; }
+
+        @keyframes flame-flicker {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+            25% { transform: scale(1.1) rotate(-2deg); opacity: 1; }
+            50% { transform: scale(0.9) rotate(2deg); opacity: 0.8; }
+            75% { transform: scale(1.05) rotate(-1deg); opacity: 1; }
+        }
+        .flame {
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: flame-flicker 0.8s infinite alternate;
+        }
+
+        /* Scroll Reveal Classes */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal-scale.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Particle System Base */
+        .particle {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            animation: particle-rise linear infinite;
+        }
+        @keyframes particle-rise {
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) translateX(20px); opacity: 0; }
+        }
+
+        /* Loading Screen Transition */
+        #intro-screen {
+            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+        }
+        #intro-screen.hidden-anim {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        #main-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        #main-content.visible {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <audio id="bg-music" loop preload="auto">
+        <!-- Using a reliable free-to-use aesthetic background track -->
+        <source src="https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="music-controls" class="fixed bottom-6 right-6 z-50 hidden opacity-0 transition-opacity duration-1000">
+        <button id="music-toggle" class="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center justify-center text-white animate-pulse-glow hover:scale-110 active:scale-95 transition-transform">
+            <i class="fa-solid fa-music" id="music-icon"></i>
+        </button>
+    </div>
+
+    <!-- Scroll Progress Bar -->
+    <div id="scroll-progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 z-[100] w-0 transition-all duration-150 ease-out"></div>
+
+    <!-- Background Particles Container -->
+    <div id="particles-container" class="fixed inset-0 pointer-events-none z-0"></div>
+
+    <!-- SCREEN 1: INTRO -->
+    <section id="intro-screen" class="fixed inset-0 z-[100] bg-gradient-to-br from-indigo-950 via-purple-900 to-fuchsia-900 flex flex-col items-center justify-center p-6 text-center">
+        <div class="z-10 max-w-md reveal active" style="transition-delay: 0.5s;">
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight drop-shadow-lg">
+                Hey Dipika... <i class="fa-solid fa-eyes text-pink-300"></i>
+            </h1>
+            <p class="text-xl md:text-2xl text-purple-200 mb-2 font-medium">
+                I made something for you.
+            </p>
+            <p class="text-lg md:text-xl text-purple-300/80 mb-12 italic">
+                But you have to open it yourself...
+            </p>
+            
+            <button id="open-btn" class="group relative px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_20px_rgba(236,72,153,0.4)] overflow-hidden transition-all hover:scale-105 active:scale-95">
+                <span class="relative z-10 flex items-center gap-2">
+                    <i class="fa-solid fa-gift group-hover:rotate-12 transition-transform"></i>
+                    Open Your Surprise
+                </span>
+                <div class="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+        </div>
+    </section>
+
+    <!-- MAIN CONTENT (Revealed after Intro) -->
+    <main id="main-content">
+        
+        <!-- SCREEN 2: BIG REVEAL -->
+        <section class="min-h-[100svh] relative flex flex-col items-center justify-center p-6 bg-gradient-to-b from-fuchsia-900 via-purple-900 to-pink-900 overflow-hidden pt-20">
+            <div class="text-center z-10 w-full max-w-3xl reveal-scale">
+                <h1 class="text-5xl md:text-7xl lg:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-pink-300 mb-6 drop-shadow-[0_0_15px_rgba(236,72,153,0.3)] leading-tight tracking-tighter" style="background-size: 200% auto; animation: text-gradient 5s linear infinite;">
+                    HAPPY BIRTHDAY<br/>DIPIKA!
+                </h1>
+                
+                <p class="text-lg md:text-2xl text-purple-200/90 font-medium max-w-xl mx-auto leading-relaxed">
+                    Today is officially your day. So unfortunately... you have to tolerate all the attention. 😂
+                </p>
+
+                <!-- Animated Cake -->
+                <div id="cake-container" class="relative w-48 h-48 md:w-64 md:h-64 mx-auto mt-12 cursor-pointer group hover:scale-105 active:scale-95 transition-transform duration-300">
+                    <!-- Plate -->
+                    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-56 md:w-72 h-8 bg-gray-200/50 backdrop-blur-sm rounded-[100%] shadow-xl"></div>
+                    
+                    <!-- Cake Tiers -->
+                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-40 md:w-56 h-20 md:h-24 bg-gradient-to-b from-pink-400 to-pink-600 rounded-xl shadow-lg flex items-center justify-center overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full flex space-x-2">
+                            <div class="w-10 h-8 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-6 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-9 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-5 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-7 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-8 bg-white/80 rounded-b-full shadow-sm"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="absolute bottom-20 md:bottom-24 left-1/2 -translate-x-1/2 w-32 md:w-44 h-16 md:h-20 bg-gradient-to-b from-purple-400 to-purple-600 rounded-xl shadow-lg flex items-center justify-center overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full flex space-x-2">
+                            <div class="w-10 h-6 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-8 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-5 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-7 bg-white/80 rounded-b-full shadow-sm"></div>
+                            <div class="w-10 h-6 bg-white/80 rounded-b-full shadow-sm"></div>
+                        </div>
+                    </div>
+
+                    <!-- Candles -->
+                    <div class="absolute bottom-36 md:bottom-44 left-1/2 -translate-x-1/2 flex gap-4">
+                        <div class="relative w-3 h-12 bg-gradient-to-b from-white to-pink-200 rounded-sm shadow-sm">
+                            <div class="candle-flame absolute -top-6 -left-1 w-5 h-8 bg-gradient-to-t from-yellow-400 to-orange-500 flame shadow-[0_0_10px_rgba(252,211,77,0.8)] transition-all duration-500"></div>
+                        </div>
+                        <div class="relative w-3 h-12 bg-gradient-to-b from-white to-pink-200 rounded-sm shadow-sm">
+                            <div class="candle-flame absolute -top-6 -left-1 w-5 h-8 bg-gradient-to-t from-yellow-400 to-orange-500 flame shadow-[0_0_10px_rgba(252,211,77,0.8)] transition-all duration-500" style="animation-delay: 0.2s"></div>
+                        </div>
+                        <div class="relative w-3 h-12 bg-gradient-to-b from-white to-pink-200 rounded-sm shadow-sm">
+                            <div class="candle-flame absolute -top-6 -left-1 w-5 h-8 bg-gradient-to-t from-yellow-400 to-orange-500 flame shadow-[0_0_10px_rgba(252,211,77,0.8)] transition-all duration-500" style="animation-delay: 0.4s"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="blow-hint" class="absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-white/70 text-sm font-medium tracking-wider pointer-events-none animate-pulse">
+                        Tap to blow out candles
+                    </div>
+                </div>
+
+                <div id="cake-message" class="mt-12 text-2xl md:text-4xl font-bold text-pink-300 italic flex items-center justify-center gap-3 opacity-0 transform translate-y-4 transition-all duration-700">
+                    <i class="fa-solid fa-wand-magic-sparkles text-yellow-400"></i>
+                    Make a wish, birthday girl. ✨
+                    <i class="fa-solid fa-wand-magic-sparkles text-yellow-400"></i>
+                </div>
+            </div>
+
+            <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce text-white/50 text-2xl">
+                <i class="fa-solid fa-arrow-down"></i>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: MESSAGE -->
+        <section class="py-24 px-6 min-h-screen flex items-center justify-center bg-[#fdf5f6] relative">
+            <!-- Subtle Paper Texture Overlay -->
+            <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23noise)\' opacity=\'1\'/%3E%3C/svg%3E');"></div>
+            
+            <div class="max-w-2xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden z-10 border border-pink-100 reveal">
+                <div class="bg-pink-50 py-6 px-8 border-b border-pink-100 flex items-center gap-4">
+                    <i class="fa-solid fa-heart-envelope text-pink-500 text-3xl"></i>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">A little something for you 💌</h2>
+                </div>
+                
+                <div class="p-8 md:p-12 space-y-6 font-serif">
+                    <p class="text-lg md:text-xl text-pink-600 font-bold leading-relaxed">Dear Dipika,<br>Happy Birthday! 🥳</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">I don't know how many people you meet in life and actually end up becoming genuinely comfortable with, but I'm really glad you're one of those people for me.</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">You've been there for the random conversations, the stupid jokes, the unnecessary drama, the laughs and all those little moments that somehow become good memories.</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">You are genuinely one of those people who makes ordinary days a little more fun.</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">So today, forget everything else for a moment. It's your day.</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">Eat something amazing. Laugh too much. Take too many pictures. Ignore unnecessary people. And enjoy being the main character. 😂</p>
+                    <p class="text-lg md:text-xl text-gray-700 leading-relaxed reveal">You deserve a really, really good year ahead.</p>
+                    <p class="text-lg md:text-xl text-pink-600 font-bold leading-relaxed reveal">Happy Birthday once again, Dipika. 🫶🎂</p>
+                    <p class="text-lg md:text-xl text-pink-600 font-bold leading-relaxed reveal">And yes... You're stuck with me as your best friend. Unfortunately. 😂❤️</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 4: GALLERY -->
+        <section class="py-24 px-4 md:px-8 bg-gradient-to-b from-[#fdf5f6] to-pink-50 relative">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-4xl md:text-5xl font-black text-gray-800 mb-4 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-camera-retro text-pink-500"></i>
+                        Our Little Collection of Memories
+                    </h2>
+                    <p class="text-gray-500 text-lg">Tap any photo to remember</p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 auto-rows-[200px] md:auto-rows-[300px]" id="gallery-grid">
+                    <!-- Gallery Item 1 -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(-2deg);" data-caption="That day 😂">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                            <!-- Provided Image 1 -->
+                            <img src="138703.jpg" alt="Memory 1" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">That day 😂</p>
+                    </div>
+                    
+                    <!-- Gallery Item 2 -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(3deg);" data-caption="Why were we like this?">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                             <!-- Provided Image 2 -->
+                            <img src="138702.jpg" alt="Memory 2" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">Why were we like this?</p>
+                    </div>
+
+                    <!-- Gallery Item 3 -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(-1deg);" data-caption="One of those random memories.">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                             <!-- Provided Image 3 -->
+                            <img src="138701.jpg" alt="Memory 3" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">One of those random memories.</p>
+                    </div>
+
+                    <!-- Gallery Item 4 (Placeholder) -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(4deg);" data-caption="Certified chaos.">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                            <img src="https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=600&auto=format&fit=crop" alt="Memory 4" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">Certified chaos.</p>
+                    </div>
+
+                    <!-- Gallery Item 5 (Placeholder) -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(-3deg);" data-caption="Still one of my favorites.">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                            <img src="https://images.unsplash.com/photo-1531747056595-07f6cbbe10ad?q=80&w=600&auto=format&fit=crop" alt="Memory 5" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">Still one of my favorites.</p>
+                    </div>
+
+                    <!-- Gallery Item 6 (Placeholder) -->
+                    <div class="gallery-item relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white p-2 md:p-3 border border-gray-100 flex flex-col reveal hover:scale-105 hover:z-10 transition-transform duration-300" style="transform: rotate(2deg);" data-caption="Proof that we actually go outside.">
+                        <div class="flex-1 w-full relative overflow-hidden rounded-xl bg-gray-100">
+                            <img src="https://images.unsplash.com/photo-1506869640319-fea1a278e0c8?q=80&w=600&auto=format&fit=crop" alt="Memory 6" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <p class="text-center mt-3 font-medium text-gray-700 text-sm md:text-base font-serif italic">Proof that we actually go outside.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lightbox Modal -->
+            <div id="lightbox" class="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+                <div class="bg-white p-4 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300" id="lightbox-content">
+                    <button id="close-lightbox" class="absolute top-4 right-4 bg-black/50 text-white p-2 w-10 h-10 flex items-center justify-center rounded-full hover:bg-pink-500 transition-colors z-10">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <div class="relative flex-1 overflow-hidden rounded-xl min-h-[50vh] bg-gray-100">
+                        <img id="lightbox-img" src="" alt="Enlarged Memory" class="w-full h-full object-contain">
+                    </div>
+                    <p id="lightbox-caption" class="text-center mt-4 text-xl md:text-2xl font-serif text-gray-800 italic"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 5: TIMELINE -->
+        <section class="py-24 px-6 bg-pink-50 relative overflow-hidden">
+            <!-- Decorative Blobs -->
+            <div class="absolute top-0 right-0 w-96 h-96 bg-purple-200 rounded-full blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2"></div>
+            <div class="absolute bottom-0 left-0 w-96 h-96 bg-pink-200 rounded-full blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2"></div>
+            
+            <div class="max-w-3xl mx-auto relative z-10">
+                <h2 class="text-4xl md:text-5xl font-black text-center text-gray-800 mb-20 reveal">
+                    How We Somehow Got Here 😂
+                </h2>
+
+                <div class="space-y-12 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-pink-300 before:via-purple-300 before:to-pink-300">
+                    
+                    <!-- Timeline Item 1 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group reveal">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-pink-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 relative">
+                            <i class="fa-solid fa-heart text-white text-xs"></i>
+                            <div class="absolute inset-0 rounded-full bg-pink-400 animate-ping opacity-20"></div>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl bg-white shadow-xl border border-pink-100 hover:-translate-y-1 transition-transform duration-300">
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-600 mb-2">🌱 Then</h3>
+                            <p class="text-gray-600 leading-relaxed">Two people who didn't know they'd eventually become this close.</p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Item 2 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group reveal">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-pink-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 relative">
+                            <i class="fa-solid fa-heart text-white text-xs"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl bg-white shadow-xl border border-pink-100 hover:-translate-y-1 transition-transform duration-300">
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-600 mb-2">😂 The Random Conversations</h3>
+                            <p class="text-gray-600 leading-relaxed">Some conversations started normally. Some absolutely did not.</p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Item 3 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group reveal">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-pink-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 relative">
+                            <i class="fa-solid fa-heart text-white text-xs"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl bg-white shadow-xl border border-pink-100 hover:-translate-y-1 transition-transform duration-300">
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-600 mb-2">🫠 The Chaos Era</h3>
+                            <p class="text-gray-600 leading-relaxed">At some point, normal friendship stopped being an option.</p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Item 4 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group reveal">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-pink-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 relative">
+                            <i class="fa-solid fa-heart text-white text-xs"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl bg-white shadow-xl border border-pink-100 hover:-translate-y-1 transition-transform duration-300">
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-600 mb-2">🫶 The Good Memories</h3>
+                            <p class="text-gray-600 leading-relaxed">Some moments are completely ordinary when they happen... but become priceless later.</p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Item 5 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group reveal">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-pink-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 relative">
+                            <i class="fa-solid fa-heart text-white text-xs"></i>
+                            <div class="absolute inset-0 rounded-full bg-pink-400 animate-ping opacity-20"></div>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl bg-white shadow-xl border border-pink-100 hover:-translate-y-1 transition-transform duration-300">
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-600 mb-2">🎂 Today</h3>
+                            <p class="text-gray-600 leading-relaxed">And now we're here. Celebrating you.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 6 & 7: TRAITS & AWARDS -->
+        <section class="py-24 px-6 bg-gradient-to-b from-pink-50 to-purple-50 overflow-hidden">
+            <div class="max-w-6xl mx-auto space-y-32">
+                
+                <!-- Traits -->
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-12 flex justify-center items-center gap-3 reveal">
+                        <i class="fa-solid fa-sparkles text-purple-500"></i>
+                        Things That Make You... You 💖
+                    </h2>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:-rotate-2 transition-transform">😂 Professional Overthinker</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:rotate-2 transition-transform" style="transition-delay: 0.1s">✨ Somehow Always Memorable</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:-rotate-1 transition-transform" style="transition-delay: 0.2s">🫶 Actually a Good Human</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:rotate-3 transition-transform" style="transition-delay: 0.3s">🎀 Main Character Energy</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:-rotate-3 transition-transform" style="transition-delay: 0.4s">🤣 Unlimited Nonsense</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:rotate-1 transition-transform" style="transition-delay: 0.5s">💅 Zero Chill Sometimes</div>
+                        <div class="px-6 py-3 bg-white rounded-full shadow-lg border border-purple-100 text-purple-700 font-medium text-lg cursor-default reveal hover:scale-110 hover:-rotate-2 transition-transform" style="transition-delay: 0.6s">❤️ Someone I'm Glad I Met</div>
+                    </div>
+                </div>
+
+                <!-- Awards -->
+                <div>
+                    <h2 class="text-4xl md:text-5xl font-black text-center text-gray-800 mb-16 reveal">
+                        🏆 The Extremely Serious Dipika Awards
+                    </h2>
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-100 p-8 rounded-3xl border border-yellow-200 shadow-lg relative overflow-hidden group reveal hover:-translate-y-2 hover:shadow-xl transition-all">
+                            <i class="fa-solid fa-trophy absolute -right-4 -top-4 text-[120px] text-yellow-500/10 group-hover:rotate-12 transition-transform duration-500"></i>
+                            <h3 class="text-xl font-bold text-yellow-900 leading-snug relative z-10">🏆 Best At Making Random Conversations Last Forever</h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-100 p-8 rounded-3xl border border-yellow-200 shadow-lg relative overflow-hidden group reveal hover:-translate-y-2 hover:shadow-xl transition-all" style="transition-delay: 0.1s">
+                            <i class="fa-solid fa-medal absolute -right-4 -top-4 text-[120px] text-yellow-500/10 group-hover:rotate-12 transition-transform duration-500"></i>
+                            <h3 class="text-xl font-bold text-yellow-900 leading-snug relative z-10">🏆 Most Likely To Say 'Nothing' While Clearly Something Is Wrong</h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-100 p-8 rounded-3xl border border-yellow-200 shadow-lg relative overflow-hidden group reveal hover:-translate-y-2 hover:shadow-xl transition-all" style="transition-delay: 0.2s">
+                            <i class="fa-solid fa-award absolute -right-4 -top-4 text-[120px] text-yellow-500/10 group-hover:rotate-12 transition-transform duration-500"></i>
+                            <h3 class="text-xl font-bold text-yellow-900 leading-snug relative z-10">🏆 Lifetime Achievement Award For Being My Best Friend</h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-100 p-8 rounded-3xl border border-yellow-200 shadow-lg relative overflow-hidden group reveal hover:-translate-y-2 hover:shadow-xl transition-all" style="transition-delay: 0.3s">
+                            <i class="fa-solid fa-star absolute -right-4 -top-4 text-[120px] text-yellow-500/10 group-hover:rotate-12 transition-transform duration-500"></i>
+                            <h3 class="text-xl font-bold text-yellow-900 leading-snug relative z-10">🏆 Best Supporting Character In My Life</h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-100 p-8 rounded-3xl border border-yellow-200 shadow-lg relative overflow-hidden group reveal hover:-translate-y-2 hover:shadow-xl transition-all" style="transition-delay: 0.4s">
+                            <i class="fa-solid fa-crown absolute -right-4 -top-4 text-[120px] text-yellow-500/10 group-hover:rotate-12 transition-transform duration-500"></i>
+                            <h3 class="text-xl font-bold text-yellow-900 leading-snug relative z-10">🏆 Most Dangerous Person To Give Gossip To 😂</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 8: MYSTERY -->
+        <section class="py-24 px-6 bg-purple-900 text-white relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.4)_0,transparent_100%)]"></div>
+            
+            <div class="max-w-4xl mx-auto relative z-10 text-center">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4 reveal">Pick One 👀</h2>
+                <p class="text-purple-200 mb-12 text-lg reveal">Choose carefully... or just open them all.</p>
+
+                <div class="grid md:grid-cols-3 gap-6 perspective-1000">
+                    <!-- Card 1 -->
+                    <div class="mystery-card relative h-64 cursor-pointer preserve-3d reveal group">
+                        <div class="card-inner w-full h-full absolute top-0 left-0 transition-transform duration-700 preserve-3d">
+                            <!-- Front -->
+                            <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl shadow-xl flex flex-col items-center justify-center border-2 border-white/20 group-hover:shadow-[0_0_20px_rgba(236,72,153,0.5)]">
+                                <i class="fa-solid fa-gift text-5xl text-white mb-4 animate-pulse"></i>
+                                <span class="text-2xl font-bold">Card 1</span>
+                            </div>
+                            <!-- Back -->
+                            <div class="absolute w-full h-full backface-hidden bg-white rounded-3xl shadow-xl flex items-center justify-center p-6 border-2 border-pink-300 text-center rotate-y-180">
+                                <p class="text-xl font-bold text-purple-800">You're amazing. Don't let anyone convince you otherwise. 🫶</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="mystery-card relative h-64 cursor-pointer preserve-3d reveal group" style="transition-delay: 0.1s">
+                        <div class="card-inner w-full h-full absolute top-0 left-0 transition-transform duration-700 preserve-3d">
+                            <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl shadow-xl flex flex-col items-center justify-center border-2 border-white/20 group-hover:shadow-[0_0_20px_rgba(236,72,153,0.5)]">
+                                <i class="fa-solid fa-gift text-5xl text-white mb-4 animate-pulse"></i>
+                                <span class="text-2xl font-bold">Card 2</span>
+                            </div>
+                            <div class="absolute w-full h-full backface-hidden bg-white rounded-3xl shadow-xl flex items-center justify-center p-6 border-2 border-pink-300 text-center rotate-y-180">
+                                <p class="text-xl font-bold text-purple-800">Congratulations. You unlocked absolutely nothing useful. 😂</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="mystery-card relative h-64 cursor-pointer preserve-3d reveal group" style="transition-delay: 0.2s">
+                        <div class="card-inner w-full h-full absolute top-0 left-0 transition-transform duration-700 preserve-3d">
+                            <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl shadow-xl flex flex-col items-center justify-center border-2 border-white/20 group-hover:shadow-[0_0_20px_rgba(236,72,153,0.5)]">
+                                <i class="fa-solid fa-gift text-5xl text-white mb-4 animate-pulse"></i>
+                                <span class="text-2xl font-bold">Card 3</span>
+                            </div>
+                            <div class="absolute w-full h-full backface-hidden bg-white rounded-3xl shadow-xl flex items-center justify-center p-6 border-2 border-pink-300 text-center rotate-y-180">
+                                <p class="text-xl font-bold text-purple-800">Okay fine... here's a virtual hug. 🫂</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 9: EMOTIONAL -->
+        <section class="py-32 px-6 bg-slate-950 text-white relative flex flex-col justify-center items-center min-h-screen">
+            <div class="max-w-3xl mx-auto text-center space-y-12 z-10 w-full">
+                <h2 class="text-2xl md:text-3xl font-medium text-pink-400 italic mb-16 reveal">
+                    Okay... jokes aside. ❤️
+                </h2>
+
+                <div class="space-y-10" id="emotional-lines">
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">Life changes.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">People come and go.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">Everyone gets busy.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">Things don't always stay the same.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">But some people leave a genuinely good mark on your life.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">And you're one of those people.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">I'm genuinely grateful for all the memories, conversations, laughs and random moments we've had.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">I hope this year gives you more reasons to smile, more opportunities to grow, and a lot of moments you'll remember for years.</p>
+                    <p class="text-xl md:text-3xl font-light text-slate-300 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">Keep being you.</p>
+                    <p class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 text-4xl md:text-5xl mt-16 pt-8 reveal blur-[2px] transition-all duration-1000 data-[inview=true]:blur-0">Happy Birthday, Dipika. ❤️</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 10: FINAL SURPRISE -->
+        <section class="min-h-screen bg-[#0a0a1a] flex flex-col items-center justify-center p-6 relative overflow-hidden" id="final-section">
+            
+            <div id="envelope-container" class="z-10 w-full max-w-2xl flex flex-col items-center transition-all duration-1000">
+                <div class="text-center">
+                    <h2 class="text-4xl font-bold text-white mb-16 drop-shadow-md reveal">One Last Thing... 💌</h2>
+                    
+                    <div id="envelope" class="relative w-64 h-48 cursor-pointer group mx-auto reveal-scale hover:scale-105 transition-transform">
+                        <!-- Envelope Body -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-pink-600 to-purple-800 rounded-lg shadow-[0_0_50px_rgba(236,72,153,0.5)] border border-pink-400/30 overflow-hidden flex items-center justify-center">
+                            <i class="fa-solid fa-heart text-5xl text-pink-300 animate-pulse"></i>
+                        </div>
+                        <!-- Flap -->
+                        <div class="absolute top-0 left-0 w-full h-0 border-l-[128px] border-l-transparent border-r-[128px] border-r-transparent border-t-[100px] border-t-pink-500 rounded-t-lg origin-top transition-transform duration-500 group-hover:rotate-x-12"></div>
+                        
+                        <div class="absolute -bottom-16 left-1/2 -translate-x-1/2 w-full text-center">
+                            <button class="px-6 py-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/30 rounded-full text-white font-medium transition-colors">
+                                Open it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Content (Hidden initially) -->
+            <div id="final-content" class="hidden opacity-0 flex-col items-center text-center space-y-8 relative z-20 transition-all duration-1000 transform translate-y-10">
+                <h1 class="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-yellow-300 drop-shadow-[0_0_30px_rgba(236,72,153,0.8)] animate-pulse-glow" style="animation-duration: 3s;">
+                    ✨ DIPIKA ✨
+                </h1>
+                
+                <div class="text-3xl flex justify-center gap-4 animate-float">
+                    🎈 🎂 🎉 🥳 💖 🎀
+                </div>
+                
+                <div class="space-y-4 bg-white/5 backdrop-blur-xl p-8 rounded-3xl border border-white/10 max-w-2xl w-full">
+                    <p class="text-xl md:text-2xl text-pink-100 font-medium">Here's to another year of memories, chaos, laughter and everything in between. 🫶</p>
+                    <p class="text-xl md:text-2xl text-purple-200 font-bold italic">Stay awesome. Stay weird. 😂</p>
+                    <p class="text-lg text-white/50 pt-4 border-t border-white/10 mt-4">— Your Best Friend</p>
+                </div>
+            </div>
+
+            <!-- Final Background Stars -->
+            <div id="starry-bg" class="fixed inset-0 pointer-events-none opacity-0 transition-opacity duration-2000 z-0 bg-[#050510]"></div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Elements
+            const introScreen = document.getElementById('intro-screen');
+            const mainContent = document.getElementById('main-content');
+            const openBtn = document.getElementById('open-btn');
+            const scrollProgress = document.getElementById('scroll-progress');
+            const audio = document.getElementById('bg-music');
+            const musicToggle = document.getElementById('music-toggle');
+            const musicControls = document.getElementById('music-controls');
+            const musicIcon = document.getElementById('music-icon');
+            
+            let isMusicPlaying = false;
+            let audioInitialized = false;
+
+            // ---- PARTICLE SYSTEM ----
+            const particlesContainer = document.getElementById('particles-container');
+            const colors = ['bg-pink-300', 'bg-purple-300', 'bg-yellow-200', 'bg-white'];
+            
+            function createParticle() {
+                const particle = document.createElement('div');
+                const size = Math.random() * 6 + 2; // 2px to 8px
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                particle.className = `particle ${color}`;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${Math.random() * 100}vw`;
+                
+                const duration = Math.random() * 10 + 10; // 10s to 20s
+                particle.style.animationDuration = `${duration}s`;
+                
+                particlesContainer.appendChild(particle);
+                
+                // Cleanup
+                setTimeout(() => {
+                    particle.remove();
+                }, duration * 1000);
+            }
+            // Create a few initially, then spawn continuously
+            for(let i=0; i<20; i++) createParticle();
+            setInterval(createParticle, 500);
+
+
+            // ---- AUDIO HANDLING ----
+            function toggleMusic() {
+                if (isMusicPlaying) {
+                    audio.pause();
+                    musicIcon.classList.remove('fa-music');
+                    musicIcon.classList.add('fa-pause');
+                    musicToggle.classList.remove('animate-pulse-glow');
+                } else {
+                    audio.play().catch(e => console.log("Audio play failed:", e));
+                    musicIcon.classList.remove('fa-pause');
+                    musicIcon.classList.add('fa-music');
+                    musicToggle.classList.add('animate-pulse-glow');
+                }
+                isMusicPlaying = !isMusicPlaying;
+            }
+
+            musicToggle.addEventListener('click', toggleMusic);
+
+            // ---- INTRO TO MAIN TRANSITION ----
+            openBtn.addEventListener('click', () => {
+                // Fire Confetti
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#ec4899', '#a855f7', '#fbbf24']
+                });
+
+                // Start Music (requires user interaction first to bypass autoplay blocks)
+                if (!audioInitialized) {
+                    audio.volume = 0.5; // pleasant volume
+                    toggleMusic(); // this will set isMusicPlaying = true and play
+                    audioInitialized = true;
+                }
+
+                // Transition Screens
+                introScreen.classList.add('hidden-anim');
+                
+                setTimeout(() => {
+                    introScreen.style.display = 'none';
+                    mainContent.classList.add('visible');
+                    musicControls.classList.remove('hidden');
+                    setTimeout(() => musicControls.classList.remove('opacity-0'), 100);
+                    
+                    // Trigger observe for newly visible elements
+                    document.querySelectorAll('.reveal, .reveal-scale').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 800);
+            });
+
+
+            // ---- SCROLL PROGRESS & REVEAL ANIMATIONS ----
+            window.addEventListener('scroll', () => {
+                const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+                const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const scrolled = (winScroll / height) * 100;
+                scrollProgress.style.width = scrolled + '%';
+            });
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        // Specific logic for emotional text blur removal
+                        if (entry.target.parentElement.id === 'emotional-lines') {
+                            entry.target.dataset.inview = "true";
+                        }
+                        observer.unobserve(entry.target); // Run once
+                    }
+                });
+            }, observerOptions);
+
+            // Intial observe for intro elements
+            document.querySelectorAll('#intro-screen .reveal').forEach(el => observer.observe(el));
+
+
+            // ---- CAKE INTERACTION ----
+            const cakeContainer = document.getElementById('cake-container');
+            const flames = document.querySelectorAll('.candle-flame');
+            const blowHint = document.getElementById('blow-hint');
+            const cakeMessage = document.getElementById('cake-message');
+            let candlesBlown = false;
+
+            cakeContainer.addEventListener('click', () => {
+                if(candlesBlown) return;
+                candlesBlown = true;
+                
+                flames.forEach(flame => {
+                    flame.style.opacity = '0';
+                    flame.style.transform = 'translateY(-20px) scale(0)';
+                });
+                
+                if(blowHint) blowHint.style.opacity = '0';
+                
+                // Show message
+                cakeMessage.style.opacity = '1';
+                cakeMessage.style.transform = 'translateY(0)';
+                
+                // Fire Confetti
+                setTimeout(() => {
+                    const end = Date.now() + 2 * 1000;
+                    const colors = ['#ec4899', '#a855f7', '#fcd34d'];
+
+                    (function frame() {
+                        confetti({
+                            particleCount: 3,
+                            angle: 60,
+                            spread: 55,
+                            origin: { x: 0 },
+                            colors: colors
+                        });
+                        confetti({
+                            particleCount: 3,
+                            angle: 120,
+                            spread: 55,
+                            origin: { x: 1 },
+                            colors: colors
+                        });
+
+                        if (Date.now() < end) {
+                            requestAnimationFrame(frame);
+                        }
+                    }());
+                }, 500);
+            });
+
+
+            // ---- GALLERY LIGHTBOX ----
+            const galleryItems = document.querySelectorAll('.gallery-item');
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lightboxCaption = document.getElementById('lightbox-caption');
+            const closeLightbox = document.getElementById('closeLightbox');
+            const lightboxContent = document.getElementById('lightbox-content');
+
+            galleryItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const img = item.querySelector('img').src;
+                    const caption = item.getAttribute('data-caption');
+                    
+                    lightboxImg.src = img;
+                    lightboxCaption.textContent = caption;
+                    
+                    lightbox.classList.remove('hidden');
+                    // Small delay for display block to apply before opacity transition
+                    setTimeout(() => {
+                        lightbox.classList.remove('opacity-0');
+                        lightboxContent.classList.remove('scale-95');
+                    }, 10);
+                });
+            });
+
+            function hideLightbox() {
+                lightbox.classList.add('opacity-0');
+                lightboxContent.classList.add('scale-95');
+                setTimeout(() => {
+                    lightbox.classList.add('hidden');
+                }, 300);
+            }
+
+            document.getElementById('close-lightbox').addEventListener('click', hideLightbox);
+            lightbox.addEventListener('click', (e) => {
+                if (e.target === lightbox) hideLightbox();
+            });
+
+
+            // ---- MYSTERY CARDS ----
+            const mysteryCards = document.querySelectorAll('.mystery-card');
+            mysteryCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const inner = card.querySelector('.card-inner');
+                    // Toggle rotation
+                    if (inner.style.transform === 'rotateY(180deg)') {
+                         // inner.style.transform = 'rotateY(0deg)'; // Optional: allow flip back
+                    } else {
+                         inner.style.transform = 'rotateY(180deg)';
+                         // Small confetti burst on open
+                         const rect = card.getBoundingClientRect();
+                         const x = (rect.left + rect.width / 2) / window.innerWidth;
+                         const y = (rect.top + rect.height / 2) / window.innerHeight;
+                         confetti({ particleCount: 30, spread: 40, origin: { x, y }, colors: ['#a855f7', '#ec4899'] });
+                    }
+                });
+            });
+
+
+            // ---- FINAL SURPRISE ----
+            const envelope = document.getElementById('envelope');
+            const envelopeContainer = document.getElementById('envelope-container');
+            const finalContent = document.getElementById('final-content');
+            const starryBg = document.getElementById('starry-bg');
+            let envelopeOpened = false;
+
+            function generateStars() {
+                for (let i = 0; i < 150; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'absolute bg-white rounded-full';
+                    const size = Math.random() * 3;
+                    star.style.width = `${size}px`;
+                    star.style.height = `${size}px`;
+                    star.style.left = `${Math.random() * 100}%`;
+                    star.style.top = `${Math.random() * 100}%`;
+                    star.style.opacity = Math.random();
+                    star.style.animation = `pulse-glow ${Math.random() * 3 + 2}s infinite alternate`;
+                    starryBg.appendChild(star);
+                }
+            }
+
+            envelope.addEventListener('click', () => {
+                if(envelopeOpened) return;
+                envelopeOpened = true;
+
+                // Hide envelope smoothly
+                envelopeContainer.style.opacity = '0';
+                envelopeContainer.style.transform = 'translateY(-50px) scale(0.8)';
+                
+                setTimeout(() => {
+                    envelopeContainer.style.display = 'none';
+                    
+                    // Show Stars & Content
+                    generateStars();
+                    starryBg.style.opacity = '1';
+                    
+                    finalContent.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        finalContent.classList.remove('opacity-0');
+                        finalContent.classList.remove('translate-y-10');
+                        
+                        // Grand Confetti
+                        const duration = 3 * 1000;
+                        const end = Date.now() + duration;
+
+                        (function frame() {
+                            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ec4899', '#fbbf24', '#ffffff'] });
+                            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#a855f7', '#fbbf24', '#ffffff'] });
+                            if (Date.now() < end) requestAnimationFrame(frame);
+                        }());
+                        
+                    }, 100);
+                }, 1000);
+            });
+
+        });
+    </script>
+</body>
+</html>
